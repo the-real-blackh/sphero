@@ -4,7 +4,9 @@
 name:                sphero
 version:             0.1.0.0
 synopsis:            Orbotix Sphero client library
--- description:         
+description:         
+    My nephew visited me at Christmas time.
+    Guess what I wasted my time doing. :)
 license:             BSD3
 license-file:        LICENSE
 author:              Stephen Blackheath
