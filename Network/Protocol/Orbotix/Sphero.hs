@@ -1,4 +1,15 @@
 {-# LANGUAGE FlexibleInstances, DeriveGeneric, DeriveFunctor #-}
+module Network.Protocol.Orbotix.Sphero (
+        Sphero,
+        runSphero,
+        forkSphero,
+        ping,
+        getVersioning,
+        Versioning(..),
+        color,
+        roll
+    ) where
+
 import Control.Applicative
 import Control.Concurrent
 import Control.Exception
@@ -18,10 +29,10 @@ import Data.Word
 import GHC.Generics
 import Network.Bluetooth
 import Numeric
-import Text.Hexdump
 
 
 data Command = Ping
+             | GetVersioning
              | Roll { roSpeed :: Word8, roHeading :: Int }
              | Color { coRed :: Word8, coGreen :: Word8, coBlue :: Word8, coSave :: Bool }
     deriving (Generic, Show)
@@ -48,6 +59,12 @@ instance Serialize (Packet Command) where
     put (Packet seq Ping) = addCK $ do
         putWord8 0
         putWord8 1
+        putWord8 seq
+        putWord8 1
+
+    put (Packet seq GetVersioning) = addCK $ do
+        putWord8 0
+        putWord8 2
         putWord8 seq
         putWord8 1
 
@@ -156,26 +173,39 @@ cmd c = Sphero $ do
             modifyMVar (ssListeners ss) $ \lnrs -> do
                 return (M.delete (ssThread ss) lnrs, ())
 
--- | hue is in degrees
-hsv_to_rgb :: (Num a, Fractional a, RealFloat a) => a -> a -> a -> (a, a, a)
-hsv_to_rgb h s v = case hi of
-    0 -> (v,t,p)
-    1 -> (q,v,p)
-    2 -> (p,v,t)
-    3 -> (p,q,v)
-    4 -> (t,p,v)
-    _ -> (v,p,q)
- where
-  hi = floor (h/60) `mod` 6
-  f = mod1 (h/60)
-  p = v*(1-s)
-  q = v*(1-f*s)
-  t = v*(1-(1-f)*s)
+data Versioning = Versioning {
+        veRECV  :: Word8,
+        veMDL   :: Word8,
+        veHW    :: Word8,
+        veMSA   :: (Word8, Word8),
+        veBL    :: Word8,
+        veBAS   :: Word8,
+        veMACRO :: Word8,
+        veAPI   :: Maybe (Word8, Word8)
+    }
+    deriving Show
 
-  mod1 x | pf < 0 = pf+1
-         | otherwise = pf
-     where
-      (_,pf) = properFraction x
+getVersioning :: Sphero Versioning
+getVersioning = do
+    bs <- cmd GetVersioning
+    case runGet go bs of
+        Left err -> fail $ "getVersioning failed: "++err
+        Right v -> return v
+  where
+    go = Versioning
+        <$> getWord8
+        <*> getWord8
+        <*> getWord8
+        <*> ((,) <$> getWord8 <*> getWord8)
+        <*> getWord8
+        <*> getWord8
+        <*> getWord8
+        <*> (do
+            r <- remaining
+            if r >= 2
+                then Just <$> ((,) <$> getWord8 <*> getWord8)
+                else pure Nothing
+         )
 
 newtype Sphero a = Sphero (ReaderT SState IO a)
     deriving Functor
@@ -224,27 +254,31 @@ forkSphero (Sphero m) = Sphero $ do
         thr <- modifyMVar (ssNextThread ss) $ \thr -> return (thr+1, thr)
         forkIO $ runReaderT m $ ss { ssThread = thr }
 
-main :: IO ()
-main = do
-    Just adapter <- defaultAdapter
-    let dev = Device adapter (read "00:06:66:4F:6F:DC")
-    s <- openRFCOMM dev 1
-    runSphero s $ do
-        forkSphero $ forever $ do
-            forever $ do
-                forM_ [0,5..359] $ \h -> do
-                    let (r, g, b) = hsv_to_rgb (h :: Double) 1 1
-                    cmd $ Color (toW r) (toW g) (toW b) False
-                    liftIO $ threadDelay 20000
-        let sp = 40
-        forever $ do
-            cmd $ Roll sp 0
-            liftIO $ threadDelay 2000000
-            cmd $ Roll sp 90
-            liftIO $ threadDelay 2000000
-            cmd $ Roll sp 180
-            liftIO $ threadDelay 2000000
-            cmd $ Roll sp 270
-            liftIO $ threadDelay 2000000
-  where
-    toW f = max 0 $ min 255 $ floor (f * 255)
+ping :: Sphero ()
+ping = do
+    cmd Ping
+    return ()
+
+color :: Word8  -- ^ Red
+      -> Word8  -- ^ Green
+      -> Word8  -- ^ Blue
+      -> Sphero ()
+color r g b = do
+    cmd $ Color r g b False
+    return ()
+
+-- | Set the Sphero's colour and save it as the default.
+colorSave :: Word8  -- ^ Red
+          -> Word8  -- ^ Green
+          -> Word8  -- ^ Blue
+          -> Sphero ()
+colorSave r g b = do
+    cmd $ Color r g b True
+    return ()
+
+roll :: Word8  -- ^ Speed
+     -> Int    -- ^ Heading
+     -> Sphero ()
+roll sp hding = do
+    cmd $ Roll sp hding
+    return ()
