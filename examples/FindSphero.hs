@@ -15,4 +15,4 @@ findSphero = do
         []      -> fail $ "Can't find a sphero device"
 
 isSphero :: Device -> Bool
-isSphero (Device _ (BDAddr addr)) = B.pack [0x66, 0x06, 0x00] `B.isSuffixOf` addr
+isSphero (Device _ (BluetoothAddr addr)) = B.pack [0x66, 0x06, 0x00] `B.isSuffixOf` addr

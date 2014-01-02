@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleInstances, DeriveGeneric, DeriveFunctor #-}
 import Network.Protocol.Orbotix.Sphero
+import Network (withSocketsDo)
 import Control.Monad
 import Control.Monad.Trans
 import Control.Concurrent (threadDelay)
@@ -7,7 +8,7 @@ import FindSphero
 
 
 main :: IO ()
-main = do
+main = withSocketsDo $ do
     s <- findSphero
     runSphero s $ do
         forkSphero $ forever $ do
