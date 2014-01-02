@@ -15,6 +15,7 @@ maintainer:          docks.cattlemen.stephen@blacksapphire.com
 category:            Network
 build-type:          Simple
 extra-source-files:  
+    examples/FindSphero.hs
     examples/versioning.hs
     examples/coloured-roll.hs
 cabal-version:       >=1.10
