@@ -1,4 +1,7 @@
 {-# LANGUAGE FlexibleInstances, DeriveGeneric, DeriveFunctor #-}
+-- | Client library for Orbotix Sphero.
+--
+-- See examples directory for an example.
 module Network.Protocol.Orbotix.Sphero (
         Sphero,
         runSphero,

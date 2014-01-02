@@ -7,6 +7,8 @@ synopsis:            Orbotix Sphero client library
 description:         
     My nephew visited me at Christmas time.
     Guess what I wasted my time doing. :)
+    .
+    See examples directory for examples.
 license:             BSD3
 license-file:        LICENSE
 author:              Stephen Blackheath
